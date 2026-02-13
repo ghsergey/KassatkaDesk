@@ -1635,7 +1635,7 @@ jobs:
         run: |
           for name in res/rustdesk-${{ env.VERSION }}*.zst; do
             [ -e "$name" ] || continue
-            mv "$name" "${name/rustdesk-/kassatkadesk-}"
+            sudo mv "$name" "${name/rustdesk-/kassatkadesk-}"
           done
 
       - name: Publish archlinux package
@@ -1924,7 +1924,7 @@ jobs:
         run: |
           for name in ./appimage/rustdesk-${{ env.VERSION }}-*.AppImage; do
             [ -e "$name" ] || continue
-            mv "$name" "${name/rustdesk-/kassatkadesk-}"
+            sudo mv "$name" "${name/rustdesk-/kassatkadesk-}"
           done
 
       - name: Publish appimage package
