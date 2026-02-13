@@ -446,8 +446,19 @@ def build_flutter_windows(version, features, skip_portable_pack):
         return
     os.chdir('libs/portable')
     system2('pip3 install -r requirements.txt')
+    portable_entry = f'../../{flutter_build_dir_2}/rustdesk.exe'
+    if os.path.exists(f'../../{flutter_build_dir_2}/kassatkadesk.exe'):
+        portable_entry = f'../../{flutter_build_dir_2}/kassatkadesk.exe'
+    elif not os.path.exists(portable_entry):
+        exes = [
+            os.path.join(f'../../{flutter_build_dir_2}', x)
+            for x in os.listdir(f'../../{flutter_build_dir_2}')
+            if x.lower().endswith('.exe')
+        ]
+        if exes:
+            portable_entry = exes[0]
     system2(
-        f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e ../../{flutter_build_dir_2}/rustdesk.exe')
+        f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e {portable_entry}')
     os.chdir('../..')
     if os.path.exists('./rustdesk_portable.exe'):
         os.replace('./target/release/rustdesk-portable-packer.exe',
