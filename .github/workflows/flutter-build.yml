@@ -1828,7 +1828,21 @@ jobs:
             export VCPKG_ROOT=/opt/artifacts/vcpkg
             # remove this when support higher version
             export USE_AOM_391=1
-            if ! $VCPKG_ROOT/vcpkg install --triplet ${{ matrix.job.vcpkg-triplet }} --x-install-root="$VCPKG_ROOT/installed"; then
+            vcpkg_ok=0
+            for attempt in 1 2 3; do
+              if $VCPKG_ROOT/vcpkg install --triplet ${{ matrix.job.vcpkg-triplet }} --x-install-root="$VCPKG_ROOT/installed"; then
+                vcpkg_ok=1
+                break
+              fi
+
+              if [ "$attempt" -lt 3 ]; then
+                sleep_sec=$((attempt * 20))
+                echo "vcpkg install failed on attempt ${attempt}, retrying in ${sleep_sec}s..."
+                sleep "$sleep_sec"
+              fi
+            done
+
+            if [ "$vcpkg_ok" -ne 1 ]; then
               find "${VCPKG_ROOT}/" -name "*.log" | while read -r _1; do
                 echo "$_1:"
                 echo "======"
