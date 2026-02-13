@@ -1902,7 +1902,7 @@ jobs:
 
       - name: Rename Binary
         run: |
-          mv kassatkadesk-${{ env.VERSION }}-${{ matrix.job.arch }}.deb appimage/kassatkadesk.deb
+          mv kassatkadesk-${{ env.VERSION }}-${{ matrix.job.arch }}.deb appimage/rustdesk.deb
 
       - name: Build appimage package
         shell: bash
@@ -1984,7 +1984,7 @@ jobs:
 
       - name: Rename Binary
         run: |
-          mv kassatkadesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.deb flatpak/kassatkadesk.deb
+          mv kassatkadesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.deb flatpak/rustdesk.deb
 
       - uses: rustdesk-org/run-on-arch-action@amd64-support
         name: Build rustdesk flatpak package for ${{ matrix.job.arch }}
