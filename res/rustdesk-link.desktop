@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=KassatkaDesk
 NoDisplay=true
-MimeType=x-scheme-handler/rustdesk;
+MimeType=x-scheme-handler/kassatkadesk;
 TryExec=kassatkadesk
 Exec=kassatkadesk %u
 Icon=kassatkadesk
