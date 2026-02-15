@@ -946,15 +946,38 @@ pub fn check_software_update() {
     }
 }
 
-const VERSION_CHECK_URL: &str = "https://api.kassatkadesk.deskio.ru/version/latest";
+fn build_update_check_url(api_server: &str) -> String {
+    let trimmed = api_server.trim_end_matches('/');
+    if trimmed.ends_with("/version/latest") {
+        return trimmed.to_owned();
+    }
+    format!("{trimmed}/version/latest")
+}
+
+fn get_software_update_url(default_url: &str) -> String {
+    let api_server = get_api_server(
+        Config::get_option("api-server"),
+        Config::get_option("custom-rendezvous-server"),
+    );
+    if api_server.is_empty() {
+        return default_url.to_owned();
+    }
+    if is_custom_client() {
+        return build_update_check_url(&api_server);
+    }
+    if is_public(&api_server) {
+        return default_url.to_owned();
+    }
+    build_update_check_url(&api_server)
+}
 
 // No need to check `danger_accept_invalid_cert` for now.
-// Because the url is always the official version-check endpoint.
+// Because the default url is `https://api.rustdesk.com/version/latest`.
 #[tokio::main(flavor = "current_thread")]
 pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
-    let (request, _default_url) =
+    let (request, default_url) =
         hbb_common::version_check_request(hbb_common::VER_TYPE_RUSTDESK_CLIENT.to_string());
-    let url = VERSION_CHECK_URL.to_string();
+    let url = get_software_update_url(&default_url);
     let proxy_conf = Config::get_socks();
     let tls_url = get_url_for_tls(&url, &proxy_conf);
     let tls_type = get_cached_tls_type(tls_url);
@@ -2483,6 +2506,26 @@ mod tests {
         assert!(!is_public("localhost"));
         assert!(!is_public("https://rustdesk.computer.com"));
         assert!(!is_public("rustdesk.comhello.com"));
+    }
+
+    #[test]
+    fn test_build_update_check_url() {
+        assert_eq!(
+            build_update_check_url("https://api.kassatkadesk.deskio.ru"),
+            "https://api.kassatkadesk.deskio.ru/version/latest"
+        );
+        assert_eq!(
+            build_update_check_url("https://api.kassatkadesk.deskio.ru/"),
+            "https://api.kassatkadesk.deskio.ru/version/latest"
+        );
+        assert_eq!(
+            build_update_check_url("https://api.kassatkadesk.deskio.ru/version/latest"),
+            "https://api.kassatkadesk.deskio.ru/version/latest"
+        );
+        assert_eq!(
+            build_update_check_url("https://api.kassatkadesk.deskio.ru/version/latest/"),
+            "https://api.kassatkadesk.deskio.ru/version/latest"
+        );
     }
 
     #[test]
