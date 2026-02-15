@@ -940,28 +940,66 @@ pub fn is_modifier(evt: &KeyEvent) -> bool {
 }
 
 pub fn check_software_update() {
-    if is_custom_client() {
-        return;
-    }
     let opt = LocalConfig::get_option(keys::OPTION_ENABLE_CHECK_UPDATE);
-    if config::option2bool(keys::OPTION_ENABLE_CHECK_UPDATE, &opt) {
+    if is_custom_client() || config::option2bool(keys::OPTION_ENABLE_CHECK_UPDATE, &opt) {
         std::thread::spawn(move || allow_err!(do_check_software_update()));
     }
 }
 
+fn build_update_check_url(api_server: &str) -> String {
+    let trimmed = api_server.trim_end_matches('/');
+    if trimmed.ends_with("/version/latest") {
+        return trimmed.to_owned();
+    }
+    format!("{trimmed}/version/latest")
+}
+
+fn get_software_update_url(default_url: &str) -> String {
+    let api_server = get_api_server(
+        Config::get_option("api-server"),
+        Config::get_option("custom-rendezvous-server"),
+    );
+    if api_server.is_empty() {
+        return default_url.to_owned();
+    }
+    if is_custom_client() {
+        if is_public(&api_server) {
+            return "".to_owned();
+        }
+        return build_update_check_url(&api_server);
+    }
+    if is_public(&api_server) {
+        return default_url.to_owned();
+    }
+    build_update_check_url(&api_server)
+}
+
 // No need to check `danger_accept_invalid_cert` for now.
-// Because the url is always `https://api.rustdesk.com/version/latest`.
+// Because the default url is `https://api.rustdesk.com/version/latest`.
 #[tokio::main(flavor = "current_thread")]
 pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
-    let (request, url) =
+    let (request, default_url) =
         hbb_common::version_check_request(hbb_common::VER_TYPE_RUSTDESK_CLIENT.to_string());
+    let url = get_software_update_url(&default_url);
+    if url.is_empty() {
+        *SOFTWARE_UPDATE_URL.lock().unwrap() = "".to_string();
+        return Ok(());
+    }
     let proxy_conf = Config::get_socks();
     let tls_url = get_url_for_tls(&url, &proxy_conf);
     let tls_type = get_cached_tls_type(tls_url);
     let is_tls_not_cached = tls_type.is_none();
     let tls_type = tls_type.unwrap_or(TlsType::Rustls);
     let client = create_http_client_async(tls_type, false);
-    let latest_release_response = match client.post(&url).json(&request).send().await {
+
+    let send_with_client = |client: reqwest::Client| async {
+        match client.post(&url).json(&request).send().await {
+            Ok(resp) if resp.status().is_success() => Ok(resp),
+            Ok(_) | Err(_) => Ok(client.get(&url).send().await?),
+        }
+    };
+
+    let latest_release_response = match send_with_client(client).await {
         Ok(resp) => {
             upsert_tls_cache(tls_url, tls_type, false);
             resp
@@ -970,7 +1008,7 @@ pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
             if is_tls_not_cached && err.is_request() {
                 let tls_type = TlsType::NativeTls;
                 let client = create_http_client_async(tls_type, false);
-                let resp = client.post(&url).json(&request).send().await?;
+                let resp = send_with_client(client).await?;
                 upsert_tls_cache(tls_url, tls_type, false);
                 resp
             } else {
@@ -978,6 +1016,13 @@ pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
             }
         }
     };
+    if !latest_release_response.status().is_success() {
+        return Err(anyhow!(
+            "Failed to check software update, status: {}",
+            latest_release_response.status()
+        )
+        .into());
+    }
     let bytes = latest_release_response.bytes().await?;
     let resp: hbb_common::VersionCheckResponse = serde_json::from_slice(&bytes)?;
     let response_url = resp.url;
@@ -2483,6 +2528,26 @@ mod tests {
         assert!(!is_public("localhost"));
         assert!(!is_public("https://rustdesk.computer.com"));
         assert!(!is_public("rustdesk.comhello.com"));
+    }
+
+    #[test]
+    fn test_build_update_check_url() {
+        assert_eq!(
+            build_update_check_url("https://api.kassatkadesk.deskio.ru"),
+            "https://api.kassatkadesk.deskio.ru/version/latest"
+        );
+        assert_eq!(
+            build_update_check_url("https://api.kassatkadesk.deskio.ru/"),
+            "https://api.kassatkadesk.deskio.ru/version/latest"
+        );
+        assert_eq!(
+            build_update_check_url("https://api.kassatkadesk.deskio.ru/version/latest"),
+            "https://api.kassatkadesk.deskio.ru/version/latest"
+        );
+        assert_eq!(
+            build_update_check_url("https://api.kassatkadesk.deskio.ru/version/latest/"),
+            "https://api.kassatkadesk.deskio.ru/version/latest"
+        );
     }
 
     #[test]
