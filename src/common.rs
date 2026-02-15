@@ -951,7 +951,13 @@ fn get_software_update_url(default_url: &str) -> String {
         Config::get_option("api-server"),
         Config::get_option("custom-rendezvous-server"),
     );
-    if api_server.is_empty() || is_public(&api_server) {
+    if api_server.is_empty() {
+        return default_url.to_owned();
+    }
+    if is_custom_client() {
+        return format!("{}/version/latest", api_server.trim_end_matches('/'));
+    }
+    if is_public(&api_server) {
         return default_url.to_owned();
     }
     format!("{}/version/latest", api_server.trim_end_matches('/'))
