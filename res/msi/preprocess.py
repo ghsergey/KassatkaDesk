@@ -455,6 +455,14 @@ def prepare_resources():
 def init_global_vars(dist_dir, app_name, args):
     dist_app = dist_dir.joinpath(app_name + ".exe")
 
+    if not dist_app.exists():
+        # Some downstream forks rename the binary but still reuse the MSI
+        # templates. Fallback to the first executable from dist_dir so
+        # preprocessor variables are still generated.
+        dist_apps = sorted(dist_dir.glob("*.exe"))
+        if dist_apps:
+            dist_app = dist_apps[0]
+
     def read_process_output(args):
         process = subprocess.Popen(
             f"{dist_app} {args}",
@@ -469,6 +477,9 @@ def init_global_vars(dist_dir, app_name, args):
     global g_build_date
     g_version = args.version.replace("-", ".")
     if g_version == "":
+        if not dist_app.exists():
+            print(f"Error: version source executable not found in {dist_dir}")
+            return False
         g_version = read_process_output("--version")
     version_pattern = re.compile(r"\d+\.\d+\.\d+.*")
     if not version_pattern.match(g_version):
@@ -480,11 +491,14 @@ def init_global_vars(dist_dir, app_name, args):
             raise ValueError(f"Invalid revision version: {args.revision_version}")    
         g_version = f"{g_version}.{args.revision_version}"
 
-    g_build_date = read_process_output("--build-date")
+    if dist_app.exists():
+        g_build_date = read_process_output("--build-date")
+    else:
+        g_build_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+
     build_date_pattern = re.compile(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}")
     if not build_date_pattern.match(g_build_date):
-        print(f"Error: build date {g_build_date} not found in {dist_app}")
-        return False
+        g_build_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 
     return True
 

@@ -1,11 +1,11 @@
 [Desktop Entry]
-Name=KassatkaDesk
+Name=RustDesk
 NoDisplay=true
-MimeType=x-scheme-handler/rustdesk;
+MimeType=x-scheme-handler/kassatkadesk;
 TryExec=kassatkadesk
 Exec=kassatkadesk %u
 Icon=kassatkadesk
 Terminal=false
 Type=Application
 StartupNotify=false
-StartupWMClass=kassatkadesk
+StartupWMClass=rustdesk
