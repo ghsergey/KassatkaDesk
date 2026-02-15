@@ -17,7 +17,9 @@ osx = platform.platform().startswith(
 hbb_name = 'rustdesk' + ('.exe' if windows else '')
 exe_path = 'target/release/' + hbb_name
 if windows:
-    flutter_build_dir = 'build/windows/x64/runner/Release/'
+    # For x86 build: set FLUTTER_WINDOWS_ARCH=ia32 and run flutter build windows --release --target-platform windows-ia32
+    flutter_windows_arch = os.environ.get('FLUTTER_WINDOWS_ARCH', 'x64')
+    flutter_build_dir = f'build/windows/{flutter_windows_arch}/runner/Release/'
 elif osx:
     flutter_build_dir = 'build/macos/Build/Products/Release/'
 else:

@@ -1316,13 +1316,30 @@ pub fn copy_raw_cmd(src_raw: &str, _raw: &str, _path: &str) -> ResultType<String
 
 pub fn copy_exe_cmd(src_exe: &str, exe: &str, path: &str) -> ResultType<String> {
     let main_exe = copy_raw_cmd(src_exe, exe, path)?;
+    let src_name = PathBuf::from(src_exe)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("rustdesk.exe");
+    let expected_name = format!("{}.exe", crate::get_app_name());
+    // Rebrand: if the copied exe has a different name (e.g. rustdesk.exe from bundle), rename to expected (e.g. kassatkadesk.exe) so shortcuts work.
+    let rename_exe = if src_name.to_lowercase() != expected_name.to_lowercase() {
+        format!(
+            "
+if exist \"{path}\\{src_name}\" move /Y \"{path}\\{src_name}\" \"{path}\\{expected_name}\"
+"
+        )
+    } else {
+        String::new()
+    };
     Ok(format!(
         "
         {main_exe}
         copy /Y \"{ORIGIN_PROCESS_EXE}\" \"{path}\\{broker_exe}\"
+        {rename_exe}
         ",
         ORIGIN_PROCESS_EXE = win_topmost_window::ORIGIN_PROCESS_EXE,
         broker_exe = win_topmost_window::INJECTED_PROCESS_EXE,
+        rename_exe = rename_exe,
     ))
 }
 
