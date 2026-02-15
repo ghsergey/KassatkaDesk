@@ -946,6 +946,14 @@ pub fn check_software_update() {
     }
 }
 
+fn build_update_check_url(api_server: &str) -> String {
+    let trimmed = api_server.trim_end_matches('/');
+    if trimmed.ends_with("/version/latest") {
+        return trimmed.to_owned();
+    }
+    format!("{trimmed}/version/latest")
+}
+
 fn get_software_update_url(default_url: &str) -> String {
     let api_server = get_api_server(
         Config::get_option("api-server"),
@@ -955,12 +963,12 @@ fn get_software_update_url(default_url: &str) -> String {
         return default_url.to_owned();
     }
     if is_custom_client() {
-        return format!("{}/version/latest", api_server.trim_end_matches('/'));
+        return build_update_check_url(&api_server);
     }
     if is_public(&api_server) {
         return default_url.to_owned();
     }
-    format!("{}/version/latest", api_server.trim_end_matches('/'))
+    build_update_check_url(&api_server)
 }
 
 // No need to check `danger_accept_invalid_cert` for now.
@@ -2498,6 +2506,26 @@ mod tests {
         assert!(!is_public("localhost"));
         assert!(!is_public("https://rustdesk.computer.com"));
         assert!(!is_public("rustdesk.comhello.com"));
+    }
+
+    #[test]
+    fn test_build_update_check_url() {
+        assert_eq!(
+            build_update_check_url("https://api.kassatkadesk.deskio.ru"),
+            "https://api.kassatkadesk.deskio.ru/version/latest"
+        );
+        assert_eq!(
+            build_update_check_url("https://api.kassatkadesk.deskio.ru/"),
+            "https://api.kassatkadesk.deskio.ru/version/latest"
+        );
+        assert_eq!(
+            build_update_check_url("https://api.kassatkadesk.deskio.ru/version/latest"),
+            "https://api.kassatkadesk.deskio.ru/version/latest"
+        );
+        assert_eq!(
+            build_update_check_url("https://api.kassatkadesk.deskio.ru/version/latest/"),
+            "https://api.kassatkadesk.deskio.ru/version/latest"
+        );
     }
 
     #[test]
