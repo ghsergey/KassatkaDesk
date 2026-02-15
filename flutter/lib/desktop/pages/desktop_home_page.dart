@@ -430,6 +430,23 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   }
 
   Widget buildHelpCards(String updateUrl) {
+    // Custom/rebranded client (e.g. KassatkaDesk): show update card when update is available.
+    if (bind.isCustomClient() &&
+        updateUrl.isNotEmpty &&
+        !isCardClosed &&
+        (isWindows || isMacOS)) {
+      final isToUpdate = bind.mainIsInstalled();
+      return buildInstallCard(
+          "Status",
+          "${translate("new-version-of-{${bind.mainGetAppNameSync()}}-tip")} (${bind.mainGetNewVersion()}).",
+          isToUpdate ? 'Update' : 'Download',
+          () {
+            handleUpdate(updateUrl);
+          },
+          closeButton: true,
+          help: isToUpdate ? 'Changelog' : null,
+          link: isToUpdate ? updateUrl : null);
+    }
     if (!bind.isCustomClient() &&
         updateUrl.isNotEmpty &&
         !isCardClosed &&
