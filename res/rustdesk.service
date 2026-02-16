@@ -9,8 +9,13 @@ ExecStart=/usr/bin/kassatkadesk --service
 # kill --tray and --server both
 ExecStop=pkill -f "kassatkadesk --"
 # below two lines do not work, have to use above one line
+<<<<<<< codex/review-application-rebranding-implementation
 #ExecStop=pkill -f "kassatkadesk --tray"
 #ExecStop=pkill -f "kassatkadesk --server"
+=======
+#ExecStop=pkill -f "rustdesk --tray"
+#ExecStop=pkill -f "rustdesk --server"
+>>>>>>> master
 PIDFile=/run/kassatkadesk.pid
 KillMode=mixed
 TimeoutStopSec=30

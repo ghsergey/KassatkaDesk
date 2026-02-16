@@ -7,7 +7,11 @@ project(runner LANGUAGES C CXX)
 set(BINARY_NAME "kassatkadesk")
 # The unique GTK application identifier for this application. See:
 # https://wiki.gnome.org/HowDoI/ChooseApplicationID
+<<<<<<< codex/review-application-rebranding-implementation
 set(APPLICATION_ID "com.kassatkadesk.kassatkadesk")
+=======
+set(APPLICATION_ID "com.kassatka.kassatkadesk")
+>>>>>>> master
 
 # Explicitly opt into modern CMake behaviors to avoid warnings with recent
 # versions of CMake.

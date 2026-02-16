@@ -216,7 +216,7 @@ libxdo-sys = { path = "libs/libxdo-sys-stub" }
 LegalCopyright = "Copyright © 2025 Purslane Ltd. All rights reserved."
 ProductName = "KassatkaDesk"
 FileDescription = "KassatkaDesk Remote Desktop"
-OriginalFilename = "rustdesk.exe"
+OriginalFilename = "kassatkadesk.exe"
 
 [target.'cfg(target_os="windows")'.build-dependencies]
 winres = "0.1"
@@ -233,7 +233,7 @@ docopt = "1.1"
 
 [package.metadata.bundle]
 name = "KassatkaDesk"
-identifier = "com.carriez.rustdesk"
+identifier = "com.kassatka.kassatkadesk"
 icon = ["res/32x32.png", "res/128x128.png", "res/128x128@2x.png"]
 osx_minimum_system_version = "10.14"
 

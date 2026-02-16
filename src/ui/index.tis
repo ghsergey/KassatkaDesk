@@ -92,7 +92,7 @@ class ConnectStatus: Reactor.Component {
     }
 
     event click $(#setup-server) () {
-        handler.open_url("https://rustdesk.com/blog/id-relay-set/");
+        handler.open_url("https://kassatkadesk.deskio.ru/blog/id-relay-set/");
     }
 }
 
@@ -528,7 +528,7 @@ class MyIdMenu: Reactor.Component {
                 <div .separator />
                 <li #allow-darktheme><span>{svg_checkmark}</span>{translate('Dark Theme')}</li>
                 <Languages />
-                {disable_installation ? "" : <li #allow-auto-update><span>{svg_checkmark}</span>{translate('Auto update')}</li>} 
+                <li #allow-auto-update><span>{svg_checkmark}</span>{translate('Auto update')}</li> 
                 <li #about>{translate('About')} {" "}{handler.get_app_name()}</li>
             </menu>
         </popup>;
@@ -583,8 +583,8 @@ class MyIdMenu: Reactor.Component {
         msgbox("custom-nocancel-nook-hasclose", translate("About") + " " + name, "<div style='line-height: 2em'> \
             <div>Version: " + handler.get_version() + " \
             <div>Fingerprint: " + handler.get_fingerprint() + " \
-            <div .link .custom-event url='https://rustdesk.com/privacy.html'>" + translate("Privacy Statement") + "</div> \
-            <div .link .custom-event url='https://rustdesk.com'>" + translate("Website") + "</div> \
+            <div .link .custom-event url='https://kassatkadesk.deskio.ru/privacy.html'>" + translate("Privacy Statement") + "</div> \
+            <div .link .custom-event url='https://kassatkadesk.deskio.ru'>" + translate("Website") + "</div> \
 	    <div style='background: #2c8cff; color: white; padding: 1em; margin-top: 1em;'>Copyright &copy; 2025 Purslane Ltd.\
             <br />" + handler.get_license() + " \
             <p style='font-weight: bold'>" + translate("Slogan_tip") + "</p>\
@@ -710,7 +710,7 @@ class App: Reactor.Component
                         {!outgoing_only && <PasswordArea />}
                     </div>
                     {(!is_win || handler.is_installed() || disable_installation) ? "" : <InstallMe />}
-                    {software_update_url && !disable_installation ? <UpdateMe /> : ""}
+                    {software_update_url ? <UpdateMe /> : ""}
                     {is_win && handler.is_installed() && !software_update_url && handler.is_installed_lower_version() && !disable_installation ? <UpgradeMe /> : ""}
                     {is_can_screen_recording ? "": <CanScreenRecording />}
                     {is_can_screen_recording && !handler.is_process_trusted(false) ? <TrustMe /> : ""}
@@ -814,10 +814,10 @@ class UpdateMe: Reactor.Component {
     }
 
     event click $(#install-me) {
-        handler.open_url("https://rustdesk.com/download");
+        handler.open_url("https://filevault.kassatkadesk.deskio.ru/releases");
         return;
         if (!is_win) {
-            handler.open_url("https://rustdesk.com");
+            handler.open_url("https://kassatkadesk.deskio.ru");
             return;
         }
         var url = software_update_url + '.' + handler.get_software_ext();
@@ -1268,7 +1268,7 @@ event keydown (evt) {
 $(body).content(<div style="size:*"><App /><div #msgbox /></div>);
 
 event click $(#powered-by) {
-    handler.open_url("https://rustdesk.com");
+    handler.open_url("https://kassatkadesk.deskio.ru");
 }
 
 event click $(#open-settings) (_, me) {
