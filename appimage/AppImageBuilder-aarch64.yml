@@ -19,7 +19,7 @@ AppDir:
     name: kassatkadesk
     icon: kassatkadesk
     version: 1.4.5
-    exec: usr/share/kassatkadesk/rustdesk
+    exec: usr/share/kassatkadesk/kassatkadesk
     exec_args: $@
   apt:
     arch:

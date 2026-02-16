@@ -122,6 +122,18 @@ impl Drop for SimpleCallOnReturn {
 }
 
 pub fn global_init() -> bool {
+    {
+        let app_name = hbb_common::config::APP_NAME.read().unwrap().clone();
+        if app_name == "RustDesk" {
+            *hbb_common::config::APP_NAME.write().unwrap() = "KassatkaDesk".to_owned();
+        }
+
+        let org = hbb_common::config::ORG.read().unwrap().clone();
+        if org == "com.carriez" {
+            *hbb_common::config::ORG.write().unwrap() = "com.kassatka".to_owned();
+        }
+    }
+
     #[cfg(target_os = "linux")]
     {
         if !crate::platform::linux::is_x11() {
