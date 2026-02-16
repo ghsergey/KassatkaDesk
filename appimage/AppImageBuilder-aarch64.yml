@@ -17,7 +17,7 @@ AppDir:
   app_info:
     id: kassatkadesk
     name: kassatkadesk
-    icon: kassatkadesk
+    icon: rustdesk
     version: 1.4.5
     exec: usr/share/kassatkadesk/kassatkadesk
     exec_args: $@
