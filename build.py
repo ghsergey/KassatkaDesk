@@ -299,8 +299,13 @@ Section: net
 Priority: optional
 Version: %s
 Architecture: %s
+<<<<<<< codex/review-application-rebranding-implementation
+Maintainer: kassatka <support@kassatka.online>
+Homepage: https://kassatkadesk.com
+=======
 Maintainer: kassatkadesk <info@kassatka.app>
 Homepage: https://kassatka.app
+>>>>>>> master
 Depends: libgtk-3-0, libxcb-randr0, libxdo3 | libxdo4, libxfixes3, libxcb-shape0, libxcb-xfixes0, libasound2, libsystemd0, curl, libva2, libva-drm2, libva-x11-2, libgstreamer-plugins-base1.0-0, libpam0g, gstreamer1.0-pipewire%s
 Recommends: libayatana-appindicator3-1
 Description: A remote control software.
@@ -336,7 +341,11 @@ def build_flutter_deb(version, features):
     system2(
         f'cp -r {flutter_build_dir}/* tmpdeb/usr/share/kassatkadesk/')
     system2(
+<<<<<<< codex/review-application-rebranding-implementation
+        'cp ../res/rustdesk.service tmpdeb/usr/share/kassatkadesk/files/systemd/kassatkadesk.service')
+=======
         'cp ../res/rustdesk.service tmpdeb/usr/share/kassatkadesk/files/systemd/')
+>>>>>>> master
     system2(
         'cp ../res/128x128@2x.png tmpdeb/usr/share/icons/hicolor/256x256/apps/kassatkadesk.png')
     system2(
@@ -379,7 +388,11 @@ def build_deb_from_folder(version, binary_folder):
     system2(
         f'cp -r ../{binary_folder}/* tmpdeb/usr/share/kassatkadesk/')
     system2(
+<<<<<<< codex/review-application-rebranding-implementation
+        'cp ../res/rustdesk.service tmpdeb/usr/share/kassatkadesk/files/systemd/kassatkadesk.service')
+=======
         'cp ../res/rustdesk.service tmpdeb/usr/share/kassatkadesk/files/systemd/')
+>>>>>>> master
     system2(
         'cp ../res/128x128@2x.png tmpdeb/usr/share/icons/hicolor/256x256/apps/kassatkadesk.png')
     system2(
@@ -619,7 +632,11 @@ def main():
                 system2('mkdir -p tmpdeb/usr/share/icons/hicolor/256x256/apps/')
                 system2('mkdir -p tmpdeb/usr/share/icons/hicolor/scalable/apps/')
                 system2(
+<<<<<<< codex/review-application-rebranding-implementation
+                    'cp res/rustdesk.service tmpdeb/usr/share/kassatkadesk/files/systemd/kassatkadesk.service')
+=======
                     'cp res/rustdesk.service tmpdeb/usr/share/kassatkadesk/files/systemd/')
+>>>>>>> master
                 system2(
                     'cp res/128x128@2x.png tmpdeb/usr/share/icons/hicolor/256x256/apps/kassatkadesk.png')
                 system2(
@@ -630,6 +647,16 @@ def main():
                     'cp res/rustdesk-link.desktop tmpdeb/usr/share/applications/kassatkadesk-link.desktop')
                 os.system('mkdir -p tmpdeb/etc/kassatkadesk/')
                 os.system('cp -a res/startwm.sh tmpdeb/etc/kassatkadesk/')
+<<<<<<< codex/review-application-rebranding-implementation
+                os.system('mkdir -p tmpdeb/etc/X11/kassatkadesk/')
+                os.system('cp res/xorg.conf tmpdeb/etc/X11/kassatkadesk/')
+                os.system('cp -a DEBIAN/* tmpdeb/DEBIAN/')
+                os.system('mkdir -p tmpdeb/etc/pam.d/')
+                os.system('cp pam.d/rustdesk.debian tmpdeb/etc/pam.d/kassatkadesk')
+                system2('strip tmpdeb/usr/bin/kassatkadesk')
+                system2('mkdir -p tmpdeb/usr/share/kassatkadesk')
+                system2('mv tmpdeb/usr/bin/kassatkadesk tmpdeb/usr/share/kassatkadesk/')
+=======
                 os.system('mkdir -p tmpdeb/etc/X11/rustdesk/')
                 os.system('cp res/xorg.conf tmpdeb/etc/X11/rustdesk/')
                 os.system('cp -a DEBIAN/* tmpdeb/DEBIAN/')
@@ -638,6 +665,7 @@ def main():
                 system2('strip tmpdeb/usr/bin/rustdesk')
                 system2('mkdir -p tmpdeb/usr/share/kassatkadesk')
                 system2('mv tmpdeb/usr/bin/rustdesk tmpdeb/usr/share/kassatkadesk/kassatkadesk')
+>>>>>>> master
                 system2('cp libsciter-gtk.so tmpdeb/usr/share/kassatkadesk/')
                 md5_file_folder("tmpdeb/")
                 system2('dpkg-deb -b tmpdeb kassatkadesk.deb; /bin/rm -rf tmpdeb/')
