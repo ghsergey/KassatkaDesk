@@ -1156,7 +1156,7 @@ pub fn lock_screen() {
     }
 }
 
-const IS1: &str = "{54E86BC2-6C85-41F3-A9EB-1A94AC9B1F93}_is1";
+const IS1: &str = "{B8F3E1A4-7D2C-4E9A-BF3D-2C8A4D6E1F7B}_is1";
 
 fn get_subkey(name: &str, wow: bool) -> String {
     let tmp = format!(
