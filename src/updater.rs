@@ -120,7 +120,9 @@ fn start_auto_update_check_(rx_msg: Receiver<UpdateMsg>) {
 fn check_update(manually: bool) -> ResultType<()> {
     #[cfg(target_os = "windows")]
     let is_msi = crate::platform::is_msi_installed()?;
-    if !(manually || config::Config::get_bool_option(config::keys::OPTION_ALLOW_AUTO_UPDATE)) {
+    // Always allow update check for custom/rebranded client (e.g. KassatkaDesk).
+    let allow_auto = config::Config::get_bool_option(config::keys::OPTION_ALLOW_AUTO_UPDATE);
+    if !(manually || allow_auto || crate::common::is_custom_client()) {
         return Ok(());
     }
     if !do_check_software_update().is_ok() {
@@ -137,13 +139,13 @@ fn check_update(manually: bool) -> ResultType<()> {
         #[cfg(target_os = "windows")]
         let download_url = if cfg!(feature = "flutter") {
             format!(
-                "{}/rustdesk-{}-x86_64.{}",
+                "{}/kassatkadesk-{}-x86_64.{}",
                 download_url,
                 version,
                 if is_msi { "msi" } else { "exe" }
             )
         } else {
-            format!("{}/rustdesk-{}-x86-sciter.exe", download_url, version)
+            format!("{}/kassatkadesk-{}-x86-sciter.exe", download_url, version)
         };
         log::debug!("New version available: {}", &version);
         let client = create_http_client_with_url(&download_url);
