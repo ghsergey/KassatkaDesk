@@ -9,15 +9,14 @@ script:
  # 32x32 icon
  - for i in {32,64,128}; do mkdir -p ./AppDir/usr/share/icons/hicolor/$i\x$i/apps/; cp ../res/$i\x$i.png ./AppDir/usr/share/icons/hicolor/$i\x$i/apps/kassatkadesk.png; done
  - mkdir -p ./AppDir/usr/share/icons/hicolor/scalable/apps/; cp ../res/scalable.svg ./AppDir/usr/share/icons/hicolor/scalable/apps/kassatkadesk.svg
- # desktop file
- # - sed -i "s/Icon=\/usr\/share\/rustdesk\/files\/rustdesk.png/Icon=rustdesk/g" ./AppDir/usr/share/applications/rustdesk.desktop
+ # appimage-builder creates the desktop file from app_info below
  - rm -rf ./AppDir/usr/share/applications
 AppDir:
   path: ./AppDir
   app_info:
     id: kassatkadesk
     name: kassatkadesk
-    icon: rustdesk
+    icon: kassatkadesk
     version: 1.5.0
     exec: usr/share/kassatkadesk/kassatkadesk
     exec_args: $@
