@@ -126,9 +126,12 @@ pub fn global_init() -> bool {
             *hbb_common::config::APP_NAME.write().unwrap() = "KassatkaDesk".to_owned();
         }
 
-        let org = hbb_common::config::ORG.read().unwrap().clone();
-        if org == "com.carriez" {
-            *hbb_common::config::ORG.write().unwrap() = "com.kassatka".to_owned();
+        #[cfg(target_os = "macos")]
+        {
+            let org = hbb_common::config::ORG.read().unwrap().clone();
+            if org == "com.carriez" {
+                *hbb_common::config::ORG.write().unwrap() = "com.kassatka".to_owned();
+            }
         }
     }
 
