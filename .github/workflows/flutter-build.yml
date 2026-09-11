@@ -563,9 +563,9 @@ jobs:
           # Patch sciter x86
           sed -i 's/branch = "dyn"/branch = "dyn_x86"/g' ./Cargo.toml
           cargo update -p sciter-rs --precise 674e07d3066ca9a92ced3816203ab6b652629d1e
-          cargo build --locked --features inline,vram,hwcodec --release --bins
+          cargo build --target ${{ matrix.job.target }} --locked --features inline,vram,hwcodec --release --bins
           mkdir -p ./Release
-          mv ./target/release/rustdesk.exe ./Release/rustdesk.exe
+          mv ./target/${{ matrix.job.target }}/release/rustdesk.exe ./Release/rustdesk.exe
           mv ./Release/rustdesk.exe ./Release/kassatkadesk.exe
           curl -LJ -o ./Release/sciter.dll https://github.com/c-smile/sciter-sdk/raw/master/bin.win/x32/sciter.dll
           echo "output_folder=./Release" >> $GITHUB_OUTPUT
@@ -1698,7 +1698,7 @@ jobs:
             --volume "/opt/artifacts:/opt/artifacts"
           shell: /bin/bash
           install: |
-            apt-get update -y
+            apt-get -o Acquire::Retries=5 update -y
             echo -e "installing deps"
             apt-get install -y \
                build-essential \
@@ -2053,7 +2053,7 @@ jobs:
             --volume "/opt/artifacts:/opt/artifacts"
           shell: /bin/bash
           install: |
-            apt-get update -y
+            apt-get -o Acquire::Retries=5 update -y
             echo -e "installing deps"
             apt-get install -y \
                build-essential \
@@ -2287,7 +2287,7 @@ jobs:
             --volume "${PWD}:/workspace"
           shell: /bin/bash
           install: |
-            apt-get update
+            apt-get -o Acquire::Retries=5 update
             apt-get install -y \
                build-essential \
                clang \
