@@ -1018,7 +1018,7 @@ pub fn check_software_update() {
     }
 }
 
-const VERSION_CHECK_URL: &str = "https://api.kassatkadesk.deskio.ru/version/latest";
+const VERSION_CHECK_URL: &str = "https://api.kassatkadesk.glukhov.im/version/latest";
 
 // No need to check `danger_accept_invalid_cert` for now.
 // Because the url is always the official version-check endpoint.

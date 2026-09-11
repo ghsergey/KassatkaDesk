@@ -361,8 +361,8 @@ pub fn get_update_download_file_from_url(url: &str) -> Option<PathBuf> {
     let parsed = url::Url::parse(url).ok()?;
     let host = parsed.host_str()?;
     let is_github = host == "github.com" && url.starts_with("https://github.com/");
-    let is_kassatka_filevault = host == "filevault.kassatkadesk.deskio.ru"
-        && url.starts_with("https://filevault.kassatkadesk.deskio.ru/");
+    let is_kassatka_filevault = host == "filevault.kassatkadesk.glukhov.im"
+        && url.starts_with("https://filevault.kassatkadesk.glukhov.im/");
     // Check the raw prefix before Url normalizes default ports.
     if parsed.scheme() != "https"
         || (!is_github && !is_kassatka_filevault)
@@ -690,7 +690,7 @@ mod tests {
         );
 
         let filevault_file = get_download_file_from_url(
-            "https://filevault.kassatkadesk.deskio.ru/releases/download/1.5.0/kassatkadesk-1.5.0-x86_64.dmg",
+            "https://filevault.kassatkadesk.glukhov.im/releases/download/1.5.0/kassatkadesk-1.5.0-x86_64.dmg",
         )
         .expect("valid KassatkaDesk filevault release asset URL");
         assert_eq!(

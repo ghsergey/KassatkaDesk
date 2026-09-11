@@ -834,7 +834,7 @@ class UpdateMe: Reactor.Component {
     }
 
     event click $(#install-me) {
-        handler.open_url("https://filevault.kassatkadesk.deskio.ru/releases");
+        handler.open_url("https://filevault.kassatkadesk.glukhov.im/releases");
         return;
         if (!is_win) {
             handler.open_url("https://kassatkadesk.deskio.ru");
