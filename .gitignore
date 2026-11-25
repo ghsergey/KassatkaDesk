@@ -62,3 +62,7 @@ flutter/web/
 .worktrees/
 # Update-metadata signing seed (private; store in CI secret, never commit)
 /update-signing-seed.secret
+# Android release signing material (private; store in CI secrets, never commit)
+/android-signing-key.txt
+/android-signing-info.txt
+/kassatka-release.jks
