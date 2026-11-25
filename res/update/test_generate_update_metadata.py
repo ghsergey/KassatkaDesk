@@ -10,6 +10,7 @@ from pathlib import Path
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from generate_update_metadata import KEY_ID
 
 SCRIPT = Path(__file__).with_name("generate_update_metadata.py")
