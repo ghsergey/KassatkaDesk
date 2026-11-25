@@ -17,3 +17,4 @@ jobs:
       upload-artifact: true
       publish-release: true
       upload-tag: ${{ github.ref_name }}
+      publish-update-metadata: ${{ github.repository == 'ghsergey/KassatkaDesk' }}

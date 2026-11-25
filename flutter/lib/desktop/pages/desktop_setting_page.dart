@@ -10,12 +10,15 @@ import 'package:flutter_hbb/common/widgets/audio_input.dart';
 import 'package:flutter_hbb/common/widgets/setting_widgets.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_home_page.dart';
+import 'package:flutter_hbb/common/widgets/keyboard_shortcuts/page_body.dart';
+import 'package:flutter_hbb/desktop/pages/desktop_keyboard_shortcuts_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_tab_page.dart';
 import 'package:flutter_hbb/desktop/widgets/remote_toolbar.dart';
 import 'package:flutter_hbb/mobile/widgets/dialog.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/models/printer_model.dart';
 import 'package:flutter_hbb/models/server_model.dart';
+import 'package:flutter_hbb/models/shortcut_model.dart';
 import 'package:flutter_hbb/models/state_model.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
@@ -96,9 +99,9 @@ class DesktopSettingPage extends StatefulWidget {
           Get.isRegistered<Rx<SettingsTabKey>>(tag: _kSettingPageTabKeyTag)) {
         DesktopTabPage.onAddSetting(initialPage: page);
         PageController controller =
-        Get.find<PageController>(tag: _kSettingPageControllerTag);
+            Get.find<PageController>(tag: _kSettingPageControllerTag);
         Rx<SettingsTabKey> selected =
-        Get.find<Rx<SettingsTabKey>>(tag: _kSettingPageTabKeyTag);
+            Get.find<Rx<SettingsTabKey>>(tag: _kSettingPageTabKeyTag);
         selected.value = page;
         controller.jumpToPage(index);
       } else {
@@ -402,7 +405,7 @@ class _General extends StatefulWidget {
 
 class _GeneralState extends State<_General> {
   final RxBool serviceStop =
-  isWeb ? RxBool(false) : Get.find<RxBool>(tag: 'stop-service');
+      isWeb ? RxBool(false) : Get.find<RxBool>(tag: 'stop-service');
   RxBool serviceBtnEnabled = true.obs;
   final GlobalKey _minToolbarOptionKey = GlobalKey();
 
@@ -419,9 +422,48 @@ class _GeneralState extends State<_General> {
         if (!isWeb) audio(context),
         if (!isWeb) record(context),
         if (!isWeb) WaylandCard(),
-        other()
+        other(),
+        if (!bind.isIncomingOnly()) keyboardShortcuts(),
       ],
     ).marginOnly(bottom: _kListViewBottomMargin);
+  }
+
+  Widget keyboardShortcuts() {
+    // The bindings JSON (LocalConfig key `keyboard-shortcuts`) holds three
+    // flags + the bindings list: {enabled, pass_through, bindings}. When the
+    // master is off, the pass-through toggle and the Configure entry are
+    // hidden — both are meaningless without an active matcher.
+    return StatefulBuilder(builder: (context, setLocalState) {
+      final enabled = ShortcutModel.isEnabled();
+      return _Card(title: 'Keyboard shortcuts', children: [
+        _OptionCheckBox(
+          context,
+          'Enable keyboard shortcuts in remote session',
+          kShortcutLocalConfigKey,
+          isServer: false,
+          optGetter: ShortcutModel.isEnabled,
+          optSetter: (_, v) async {
+            await ShortcutModel.setEnabled(v);
+            setLocalState(() {});
+          },
+        ),
+        if (enabled) ...[
+          _OptionCheckBox(
+            context,
+            'Pass-through to remote',
+            kShortcutLocalConfigKey,
+            isServer: false,
+            optGetter: ShortcutModel.isPassThrough,
+            optSetter: (_, v) async {
+              await ShortcutModel.setPassThrough(v);
+              setLocalState(() {});
+            },
+            trailing: const InfoTooltipIcon(tipKey: 'shortcut-passthrough-tip'),
+          ),
+          _ShortcutsConfigureRow(),
+        ],
+      ]);
+    });
   }
 
   Widget theme() {
@@ -537,7 +579,7 @@ class _GeneralState extends State<_General> {
               kOptionTextureRender,
               optGetter: bind.mainGetUseTextureRender,
               optSetter: (k, v) async =>
-              await bind.mainSetLocalOption(key: k, value: v ? 'Y' : 'N'),
+                  await bind.mainSetLocalOption(key: k, value: v ? 'Y' : 'N'),
             ),
           ),
         if (isWindows)
@@ -591,13 +633,7 @@ class _GeneralState extends State<_General> {
           isServer: false,
         ),
       ],
-      if (!incomingOnly)
-        _OptionCheckBox(
-          context,
-          'Enable WebRTC P2P connection',
-          kOptionEnableWebrtc,
-          isServer: false,
-        ),
+      if (!incomingOnly) ...webrtcOptions(context),
       if (!isWeb && !incomingOnly)
         Tooltip(
           message: translate('sync-clipboard-between-sessions-tip'),
@@ -764,10 +800,10 @@ class _GeneralState extends State<_General> {
     return futureBuilder(future: () async {
       String user_dir = bind.mainVideoSaveDirectory(root: false);
       String root_dir =
-      showRootDir ? bind.mainVideoSaveDirectory(root: true) : '';
+          showRootDir ? bind.mainVideoSaveDirectory(root: true) : '';
       bool user_dir_exists = await Directory(user_dir).exists();
       bool root_dir_exists =
-      showRootDir ? await Directory(root_dir).exists() : false;
+          showRootDir ? await Directory(root_dir).exists() : false;
       return {
         'user_dir': user_dir,
         'root_dir': root_dir,
@@ -803,7 +839,7 @@ class _GeneralState extends State<_General> {
                       softWrap: true,
                       style: root_dir_exists
                           ? const TextStyle(
-                          decoration: TextDecoration.underline)
+                              decoration: TextDecoration.underline)
                           : null,
                     )).marginOnly(left: 10),
               ),
@@ -824,31 +860,31 @@ class _GeneralState extends State<_General> {
                       softWrap: true,
                       style: user_dir_exists
                           ? const TextStyle(
-                          decoration: TextDecoration.underline)
+                              decoration: TextDecoration.underline)
                           : null,
                     )).marginOnly(left: 10),
               ),
               ElevatedButton(
-                  onPressed: isOptionFixed(kOptionVideoSaveDirectory)
-                      ? null
-                      : () async {
-                    String? initialDirectory;
-                    if (await Directory.fromUri(
-                        Uri.directory(user_dir))
-                        .exists()) {
-                      initialDirectory = user_dir;
-                    }
-                    String? selectedDirectory =
-                    await FilePicker.platform.getDirectoryPath(
-                        initialDirectory: initialDirectory);
-                    if (selectedDirectory != null) {
-                      await bind.mainSetLocalOption(
-                          key: kOptionVideoSaveDirectory,
-                          value: selectedDirectory);
-                      setState(() {});
-                    }
-                  },
-                  child: Text(translate('Change')))
+                      onPressed: isOptionFixed(kOptionVideoSaveDirectory)
+                          ? null
+                          : () async {
+                              String? initialDirectory;
+                              if (await Directory.fromUri(
+                                      Uri.directory(user_dir))
+                                  .exists()) {
+                                initialDirectory = user_dir;
+                              }
+                              String? selectedDirectory =
+                                  await FilePicker.platform.getDirectoryPath(
+                                      initialDirectory: initialDirectory);
+                              if (selectedDirectory != null) {
+                                await bind.mainSetLocalOption(
+                                    key: kOptionVideoSaveDirectory,
+                                    value: selectedDirectory);
+                                setState(() {});
+                              }
+                            },
+                      child: Text(translate('Change')))
                   .marginOnly(left: 5),
             ],
           ).marginOnly(left: _kContentHMargin),
@@ -886,6 +922,85 @@ class _GeneralState extends State<_General> {
         enabled: !isOptFixed,
       ).marginOnly(left: _kContentHMargin);
     });
+  }
+
+  // How long an already-connected relay is held back to give the direct WebRTC
+  // attempt a chance to win. It only means anything while WebRTC is on, so it
+  // follows the checkbox as an indented sub-option and is hidden outright when
+  // the box is clear — the shape `directIp` uses for its port.
+  List<Widget> webrtcOptions(BuildContext context) {
+    final stored = bind.mainGetLocalOption(key: kOptionRelayFallbackDelay);
+    final controller = TextEditingController(text: stored);
+    // What the field holds against what is saved. Apply is offered only while
+    // the two differ, so an untouched field shows no button at all, and neither
+    // does one typed back to its saved value or cleared when nothing was saved
+    // — the state an "edited" flag alone would still call dirty.
+    final typed = RxString(stored);
+    final saved = RxString(stored);
+    return [
+      _OptionCheckBox(
+        context,
+        'Enable WebRTC P2P connection',
+        kOptionEnableWebrtc,
+        isServer: false,
+        update: (_) => setState(() {}),
+      ),
+      () {
+        final enabled = mainGetLocalBoolOptionSync(kOptionEnableWebrtc);
+        final isOptFixed = isOptionFixed(kOptionRelayFallbackDelay);
+        return Offstage(
+          offstage: !enabled,
+          child: Tooltip(
+            message: translate('relay-fallback-delay-tip'),
+            child: _SubLabeledWidget(
+              context,
+              'Relay fallback delay in seconds',
+              Row(children: [
+                SizedBox(
+                  width: 95,
+                  child: TextField(
+                    controller: controller,
+                    enabled: enabled && !isOptFixed,
+                    onChanged: (v) => typed.value = v,
+                    inputFormatters: [
+                      // Seconds, at most one decimal. Clearing the field is
+                      // allowed and restores the built-in default.
+                      FilteringTextInputFormatter.allow(
+                          RegExp(r'^([0-9]|[1-9][0-9])(\.[0-9]?)?$')),
+                    ],
+                    decoration: const InputDecoration(
+                      hintText: '2.5',
+                      contentPadding:
+                          EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                    ),
+                  ).workaroundFreezeLinuxMint().marginOnly(right: 15),
+                ),
+                Obx(() => Offstage(
+                      offstage: typed.value.trim() == saved.value.trim(),
+                      child: ElevatedButton(
+                        onPressed: enabled &&
+                                !isOptFixed &&
+                                !typed.value.trim().endsWith('.') &&
+                                double.tryParse(typed.value.trim()) != 0
+                            ? () async {
+                                final v = controller.text.trim();
+                                await bind.mainSetLocalOption(
+                                    key: kOptionRelayFallbackDelay, value: v);
+                                if (controller.text != v) controller.text = v;
+                                typed.value = v;
+                                saved.value = v;
+                              }
+                            : null,
+                        child: Text(translate('Apply')),
+                      ),
+                    ))
+              ]),
+              enabled: enabled && !isOptFixed,
+            ),
+          ),
+        );
+      }(),
+    ];
   }
 }
 
@@ -959,19 +1074,19 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
       final tfa = GestureDetector(
         child: InkWell(
           child: Obx(() => Row(
-            children: [
-              Checkbox(
-                  value: has2fa.value,
-                  onChanged: enabled ? onChanged : null)
-                  .marginOnly(right: 5),
-              Expanded(
-                  child: Text(
+                children: [
+                  Checkbox(
+                          value: has2fa.value,
+                          onChanged: enabled ? onChanged : null)
+                      .marginOnly(right: 5),
+                  Expanded(
+                      child: Text(
                     translate('enable-2fa-title'),
                     style:
-                    TextStyle(color: disabledTextColor(context, enabled)),
+                        TextStyle(color: disabledTextColor(context, enabled)),
                   ))
-            ],
-          )),
+                ],
+              )),
         ),
         onTap: () {
           onChanged(!has2fa.value);
@@ -1002,19 +1117,19 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
           message: translate("enable-bot-tip"),
           child: InkWell(
               child: Obx(() => Row(
-                children: [
-                  Checkbox(
-                      value: hasBot.value,
-                      onChanged: enabled ? onChangedBot : null)
-                      .marginOnly(right: 5),
-                  Expanded(
-                      child: Text(
+                    children: [
+                      Checkbox(
+                              value: hasBot.value,
+                              onChanged: enabled ? onChangedBot : null)
+                          .marginOnly(right: 5),
+                      Expanded(
+                          child: Text(
                         translate('Telegram bot'),
                         style: TextStyle(
                             color: disabledTextColor(context, enabled)),
                       ))
-                ],
-              ))),
+                    ],
+                  ))),
         ),
         onTap: () {
           onChangedBot(!hasBot.value);
@@ -1029,9 +1144,16 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
               message: translate("enable-trusted-devices-tip"),
               child: _OptionCheckBox(context, "Enable trusted devices",
                   kOptionEnableTrustedDevices,
+                  optSetter: (key, value) async {
+                try {
+                  await mainSetBoolOption(key, value);
+                } catch (error) {
+                  showToast(error.toString());
+                }
+              },
                   enabled: !locked, update: (v) {
-                    setState(() {});
-                  }),
+                setState(() {});
+              }),
             ),
           ),
           if (mainGetBoolOptionSync(kOptionEnableTrustedDevices))
@@ -1039,14 +1161,28 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
                 onPressed: locked
                     ? null
                     : () {
-                  manageTrustedDeviceDialog();
-                },
+                        manageTrustedDeviceDialog();
+                      },
                 child: Text(translate('Manage trusted devices')))
         ],
       ).marginOnly(left: 30);
 
       return Column(
-        children: [tfa, bot, trust],
+        children: [
+          tfa,
+          bot,
+          trust,
+          if (mainGetBoolOptionSync(kOptionEnableTrustedDevices))
+            trustedDeviceExpiration(
+              enabled: !locked,
+              onChanged: () {
+                if (mounted) setState(() {});
+              },
+            ).marginOnly(
+              left: _kCheckBoxLeftMargin + 20 + _kContentHSubMargin,
+              top: _kContentHMargin,
+            ),
+        ],
       );
     }
 
@@ -1175,23 +1311,23 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
           bool tmpEnabled = model.verificationMethod != kUsePermanentPassword;
           bool permEnabled = model.verificationMethod != kUseTemporaryPassword;
           String currentValue =
-          passwordValues[passwordKeys.indexOf(model.verificationMethod)];
+              passwordValues[passwordKeys.indexOf(model.verificationMethod)];
           List<Widget> radios = passwordValues
               .map((value) => _Radio<String>(
-            context,
-            value: value,
-            groupValue: currentValue,
-            label: value,
-            onChanged: locked
-                ? null
-                : ((value) async {
-              callback() async {
-                await model.setVerificationMethod(
-                    passwordKeys[passwordValues.indexOf(value)]);
-                await model.updatePasswordModel();
-              }
+                    context,
+                    value: value,
+                    groupValue: currentValue,
+                    label: value,
+                    onChanged: locked
+                        ? null
+                        : ((value) async {
+                            callback() async {
+                              await model.setVerificationMethod(
+                                  passwordKeys[passwordValues.indexOf(value)]);
+                              await model.updatePasswordModel();
+                            }
 
-                             if (value ==
+                            if (value ==
                                     passwordValues[passwordKeys
                                         .indexOf(kUsePermanentPassword)] &&
                                 (await bind.mainGetCommon(
@@ -1205,63 +1341,63 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
                             } else {
                               await callback();
                             }
-                           }),
-                   ))
+                          }),
+                  ))
               .toList();
 
           var onChanged = tmpEnabled && !locked
               ? (value) {
-            if (value != null) {
-              () async {
-                await model.setTemporaryPasswordLength(value.toString());
-                await model.updatePasswordModel();
-              }();
-            }
-          }
+                  if (value != null) {
+                    () async {
+                      await model.setTemporaryPasswordLength(value.toString());
+                      await model.updatePasswordModel();
+                    }();
+                  }
+                }
               : null;
           List<Widget> lengthRadios = ['6', '8', '10']
               .map((value) => GestureDetector(
-            child: Row(
-              children: [
-                Radio(
-                    value: value,
-                    groupValue: model.temporaryPasswordLength,
-                    onChanged: onChanged),
-                Text(
-                  value,
-                  style: TextStyle(
-                      color: disabledTextColor(
-                          context, onChanged != null)),
-                ),
-              ],
-            ).paddingOnly(right: 10),
-            onTap: () => onChanged?.call(value),
-          ))
+                    child: Row(
+                      children: [
+                        Radio(
+                            value: value,
+                            groupValue: model.temporaryPasswordLength,
+                            onChanged: onChanged),
+                        Text(
+                          value,
+                          style: TextStyle(
+                              color: disabledTextColor(
+                                  context, onChanged != null)),
+                        ),
+                      ],
+                    ).paddingOnly(right: 10),
+                    onTap: () => onChanged?.call(value),
+                  ))
               .toList();
 
           final isOptFixedNumOTP =
-          isOptionFixed(kOptionAllowNumericOneTimePassword);
+              isOptionFixed(kOptionAllowNumericOneTimePassword);
           final isNumOPTChangable = !isOptFixedNumOTP && tmpEnabled && !locked;
           final numericOneTimePassword = GestureDetector(
             child: InkWell(
                 child: Row(
-                  children: [
-                    Checkbox(
+              children: [
+                Checkbox(
                         value: model.allowNumericOneTimePassword,
                         onChanged: isNumOPTChangable
                             ? (bool? v) {
-                          model.switchAllowNumericOneTimePassword();
-                        }
+                                model.switchAllowNumericOneTimePassword();
+                              }
                             : null)
-                        .marginOnly(right: 5),
-                    Expanded(
-                        child: Text(
-                          translate('Numeric one-time password'),
-                          style: TextStyle(
-                              color: disabledTextColor(context, isNumOPTChangable)),
-                        ))
-                  ],
-                )),
+                    .marginOnly(right: 5),
+                Expanded(
+                    child: Text(
+                  translate('Numeric one-time password'),
+                  style: TextStyle(
+                      color: disabledTextColor(context, isNumOPTChangable)),
+                ))
+              ],
+            )),
             onTap: isNumOPTChangable
                 ? () => model.switchAllowNumericOneTimePassword()
                 : null,
@@ -1349,13 +1485,13 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
           child: Row(
             children: [
               Checkbox(
-                  value: value,
-                  onChanged: enabled ? (_) => onChanged(!value) : null)
+                      value: value,
+                      onChanged: enabled ? (_) => onChanged(!value) : null)
                   .marginOnly(right: 5),
               Expanded(
                 child: Text(translate('Enable RDP session sharing'),
                     style:
-                    TextStyle(color: disabledTextColor(context, enabled))),
+                        TextStyle(color: disabledTextColor(context, enabled))),
               )
             ],
           ).marginOnly(left: _kCheckBoxLeftMargin),
@@ -1370,7 +1506,7 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
     return [
       _OptionCheckBox(context, 'Enable direct IP access', kOptionDirectServer,
           update: update, enabled: !locked),
-          () {
+      () {
         // Simple temp wrapper for PR check
         tmpWrapper() {
           bool enabled = option2bool(kOptionDirectServer,
@@ -1398,26 +1534,26 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
                     decoration: const InputDecoration(
                       hintText: '21118',
                       contentPadding:
-                      EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                          EdgeInsets.symmetric(vertical: 12, horizontal: 12),
                     ),
                   ).workaroundFreezeLinuxMint().marginOnly(right: 15),
                 ),
                 Obx(() => ElevatedButton(
-                  onPressed: applyEnabled.value &&
-                      enabled &&
-                      !locked &&
-                      !isOptFixed
-                      ? () async {
-                    applyEnabled.value = false;
-                    await bind.mainSetOption(
-                        key: kOptionDirectAccessPort,
-                        value: controller.text);
-                  }
-                      : null,
-                  child: Text(
-                    translate('Apply'),
-                  ),
-                ))
+                      onPressed: applyEnabled.value &&
+                              enabled &&
+                              !locked &&
+                              !isOptFixed
+                          ? () async {
+                              applyEnabled.value = false;
+                              await bind.mainSetOption(
+                                  key: kOptionDirectAccessPort,
+                                  value: controller.text);
+                            }
+                          : null,
+                      child: Text(
+                        translate('Apply'),
+                      ),
+                    ))
               ]),
               enabled: enabled && !locked && !isOptFixed,
             ),
@@ -1447,33 +1583,33 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
         child: Tooltip(
           message: translate('whitelist_tip'),
           child: Obx(() => Row(
-            children: [
-              Checkbox(
-                  value: hasWhitelist.value,
-                  onChanged: enabled && !isOptFixed ? onChanged : null)
-                  .marginOnly(right: 5),
-              Offstage(
-                offstage: !hasWhitelist.value,
-                child: MouseRegion(
-                  child: const Icon(Icons.warning_amber_rounded,
-                      color: Color.fromARGB(255, 255, 204, 0))
+                children: [
+                  Checkbox(
+                          value: hasWhitelist.value,
+                          onChanged: enabled && !isOptFixed ? onChanged : null)
                       .marginOnly(right: 5),
-                  cursor: SystemMouseCursors.click,
-                ),
-              ),
-              Expanded(
-                  child: Text(
+                  Offstage(
+                    offstage: !hasWhitelist.value,
+                    child: MouseRegion(
+                      child: const Icon(Icons.warning_amber_rounded,
+                              color: Color.fromARGB(255, 255, 204, 0))
+                          .marginOnly(right: 5),
+                      cursor: SystemMouseCursors.click,
+                    ),
+                  ),
+                  Expanded(
+                      child: Text(
                     translate('Use IP Whitelisting'),
                     style:
-                    TextStyle(color: disabledTextColor(context, enabled)),
+                        TextStyle(color: disabledTextColor(context, enabled)),
                   ))
-            ],
-          )),
+                ],
+              )),
         ),
         onTap: enabled
             ? () {
-          onChanged(!hasWhitelist.value);
-        }
+                onChanged(!hasWhitelist.value);
+              }
             : null,
       ).marginOnly(left: _kCheckBoxLeftMargin);
     }
@@ -1544,14 +1680,14 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
               message: enableHideCm ? "" : translate('hide_cm_tip'),
               child: GestureDetector(
                 onTap:
-                enableHideCm ? () => onHideCmChanged(!model.hideCm) : null,
+                    enableHideCm ? () => onHideCmChanged(!model.hideCm) : null,
                 child: Row(
                   children: [
                     Checkbox(
-                        value: model.hideCm,
-                        onChanged: enabled && enableHideCm
-                            ? onHideCmChanged
-                            : null)
+                            value: model.hideCm,
+                            onChanged: enabled && enableHideCm
+                                ? onHideCmChanged
+                                : null)
                         .marginOnly(right: 5),
                     Expanded(
                       child: Text(
@@ -1575,7 +1711,7 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
       _OptionCheckBox(
           context, 'auto_disconnect_option_tip', kOptionAllowAutoDisconnect,
           update: update, enabled: !locked),
-          () {
+      () {
         bool enabled = option2bool(kOptionAllowAutoDisconnect,
             bind.mainGetOptionSync(key: kOptionAllowAutoDisconnect));
         if (!enabled) applyEnabled.value = false;
@@ -1601,24 +1737,24 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
                   decoration: const InputDecoration(
                     hintText: '10',
                     contentPadding:
-                    EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                        EdgeInsets.symmetric(vertical: 12, horizontal: 12),
                   ),
                 ).workaroundFreezeLinuxMint().marginOnly(right: 15),
               ),
               Obx(() => ElevatedButton(
-                onPressed:
-                applyEnabled.value && enabled && !locked && !isOptFixed
-                    ? () async {
-                  applyEnabled.value = false;
-                  await bind.mainSetOption(
-                      key: kOptionAutoDisconnectTimeout,
-                      value: controller.text);
-                }
-                    : null,
-                child: Text(
-                  translate('Apply'),
-                ),
-              ))
+                    onPressed:
+                        applyEnabled.value && enabled && !locked && !isOptFixed
+                            ? () async {
+                                applyEnabled.value = false;
+                                await bind.mainSetOption(
+                                    key: kOptionAutoDisconnectTimeout,
+                                    value: controller.text);
+                              }
+                            : null,
+                    child: Text(
+                      translate('Apply'),
+                    ),
+                  ))
             ]),
             enabled: enabled && !locked && !isOptFixed,
           ),
@@ -1641,22 +1777,22 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
     final isOptFixed = isOptionFixed(kOptionWhitelist);
     return GestureDetector(
       child: Obx(() => Row(
-        children: [
-          Checkbox(
-              value: unlockPin.isNotEmpty,
-              onChanged: enabled && !isOptFixed ? onChanged : null)
-              .marginOnly(right: 5),
-          Expanded(
-              child: Text(
+            children: [
+              Checkbox(
+                      value: unlockPin.isNotEmpty,
+                      onChanged: enabled && !isOptFixed ? onChanged : null)
+                  .marginOnly(right: 5),
+              Expanded(
+                  child: Text(
                 translate('Unlock with PIN'),
                 style: TextStyle(color: disabledTextColor(context, enabled)),
               ))
-        ],
-      )),
+            ],
+          )),
       onTap: enabled
           ? () {
-        onChanged(!unlockPin.isNotEmpty);
-      }
+              onChanged(!unlockPin.isNotEmpty);
+            }
           : null,
     ).marginOnly(left: _kCheckBoxLeftMargin);
   }
@@ -1716,35 +1852,35 @@ class _NetworkState extends State<_Network> with AutomaticKeepAliveClientMixin {
     }) {
       final titleWidget = showTooltip
           ? Row(
-        children: [
-          Tooltip(
-            waitDuration: Duration(milliseconds: 1000),
-            message: translate(tooltipMessage),
-            child: Row(
               children: [
-                Text(
-                  translate(title),
-                  style: TextStyle(fontSize: _kContentFontSize),
-                ),
-                SizedBox(width: 5),
-                Icon(
-                  Icons.help_outline,
-                  size: 14,
-                  color: Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.color
-                      ?.withOpacity(0.7),
+                Tooltip(
+                  waitDuration: Duration(milliseconds: 1000),
+                  message: translate(tooltipMessage),
+                  child: Row(
+                    children: [
+                      Text(
+                        translate(title),
+                        style: TextStyle(fontSize: _kContentFontSize),
+                      ),
+                      SizedBox(width: 5),
+                      Icon(
+                        Icons.help_outline,
+                        size: 14,
+                        color: Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.color
+                            ?.withOpacity(0.7),
+                      ),
+                    ],
+                  ),
                 ),
               ],
-            ),
-          ),
-        ],
-      )
+            )
           : Text(
-        translate(title),
-        style: TextStyle(fontSize: _kContentFontSize),
-      );
+              translate(title),
+              style: TextStyle(fontSize: _kContentFontSize),
+            );
 
       return ListTile(
         leading: Icon(icon, color: _accentColor),
@@ -1762,7 +1898,7 @@ class _NetworkState extends State<_Network> with AutomaticKeepAliveClientMixin {
     }
 
     Widget switchWidget(IconData icon, String title, String tooltipMessage,
-        String optionKey) =>
+            String optionKey) =>
         listTile(
           icon: icon,
           title: title,
@@ -1773,9 +1909,9 @@ class _NetworkState extends State<_Network> with AutomaticKeepAliveClientMixin {
             onChanged: locked || isOptionFixed(optionKey)
                 ? null
                 : (value) {
-              mainSetBoolOption(optionKey, value);
-              setState(() {});
-            },
+                    mainSetBoolOption(optionKey, value);
+                    setState(() {});
+                  },
           ),
         );
 
@@ -1832,20 +1968,20 @@ class _NetworkState extends State<_Network> with AutomaticKeepAliveClientMixin {
                               title: 'Disable UDP',
                               showTooltip: true,
                               tooltipMessage:
-                              '${translate('disable-udp-tip')}\n\n${translate('server-oss-not-support-tip')}',
+                                  '${translate('disable-udp-tip')}\n\n${translate('server-oss-not-support-tip')}',
                               trailing: Switch(
                                 value: bind.mainGetOptionSync(
-                                    key: kOptionDisableUdp) ==
+                                        key: kOptionDisableUdp) ==
                                     'Y',
                                 onChanged:
-                                locked || isOptionFixed(kOptionDisableUdp)
-                                    ? null
-                                    : (value) async {
-                                  await bind.mainSetOption(
-                                      key: kOptionDisableUdp,
-                                      value: value ? 'Y' : 'N');
-                                  setState(() {});
-                                },
+                                    locked || isOptionFixed(kOptionDisableUdp)
+                                        ? null
+                                        : (value) async {
+                                            await bind.mainSetOption(
+                                                key: kOptionDisableUdp,
+                                                value: value ? 'Y' : 'N');
+                                            setState(() {});
+                                          },
                               ),
                             ),
                         ],
@@ -1942,7 +2078,7 @@ class _DisplayState extends State<_Display> {
             offstage: groupValue != kRemoteScrollStyleEdge,
             child: EdgeThicknessControl(
               value: double.tryParse(bind.mainGetUserDefaultOption(
-                  key: kOptionEdgeScrollEdgeThickness)) ??
+                      key: kOptionEdgeScrollEdgeThickness)) ??
                   100.0,
               onChanged: isOptionFixed(kOptionEdgeScrollEdgeThickness)
                   ? null
@@ -1991,8 +2127,8 @@ class _DisplayState extends State<_Display> {
 
   Widget trackpadSpeed(BuildContext context) {
     final initSpeed =
-    (int.tryParse(bind.mainGetUserDefaultOption(key: kKeyTrackpadSpeed)) ??
-        kDefaultTrackpadSpeed);
+        (int.tryParse(bind.mainGetUserDefaultOption(key: kKeyTrackpadSpeed)) ??
+            kDefaultTrackpadSpeed);
     final curSpeed = SimpleWrapper(initSpeed);
     void onDebouncer(int v) {
       bind.mainSetUserDefaultOption(
@@ -2017,7 +2153,7 @@ class _DisplayState extends State<_Display> {
     }
 
     final groupValue =
-    bind.mainGetUserDefaultOption(key: kOptionCodecPreference);
+        bind.mainGetUserDefaultOption(key: kOptionCodecPreference);
     var hwRadios = [];
     final isOptFixed = isOptionFixed(kOptionCodecPreference);
     try {
@@ -2117,8 +2253,8 @@ class _DisplayState extends State<_Display> {
         child: Row(
           children: [
             Checkbox(
-                value: value,
-                onChanged: isOptFixed ? null : (_) => onChanged(!value))
+                    value: value,
+                    onChanged: isOptFixed ? null : (_) => onChanged(!value))
                 .marginOnly(right: 5),
             Expanded(
               child: Text(translate(label)),
@@ -2130,7 +2266,7 @@ class _DisplayState extends State<_Display> {
 
   Widget other(BuildContext context) {
     final children =
-    otherDefaultSettings().map((e) => otherRow(e.$1, e.$2)).toList();
+        otherDefaultSettings().map((e) => otherRow(e.$1, e.$2)).toList();
     return _Card(title: 'Other Default Options', children: children);
   }
 }
@@ -2162,13 +2298,13 @@ class _AccountState extends State<_Account> {
         () => {
               gFFI.userModel.userName.value.isEmpty
                   ? loginDialog()
-                   : logOutConfirmDialog()
-             }));
+                  : logOutConfirmDialog()
+            }));
   }
 
   Widget useInfo() {
     return Obx(() => Offstage(
-           offstage: gFFI.userModel.userName.value.isEmpty,
+          offstage: gFFI.userModel.userName.value.isEmpty,
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -2213,8 +2349,8 @@ class _AccountState extends State<_Account> {
                 ],
               );
             }),
-           ),
-         )).marginOnly(left: 18, top: 16);
+          ),
+        )).marginOnly(left: 18, top: 16);
   }
 
   Widget? _buildUserAvatar() {
@@ -2235,9 +2371,9 @@ class _Checkbox extends StatefulWidget {
 
   const _Checkbox(
       {Key? key,
-        required this.label,
-        required this.getValue,
-        required this.setValue})
+      required this.label,
+      required this.getValue,
+      required this.setValue})
       : super(key: key);
 
   @override
@@ -2311,7 +2447,7 @@ class __PrinterState extends State<_Printer> {
       return Align(
         alignment: Alignment.topLeft,
         child:
-        Text(translate('printer-requires-installed-{$appName}-client-tip')),
+            Text(translate('printer-requires-installed-{$appName}-client-tip')),
       ).marginOnly(left: _kCardLeftMargin);
     }
 
@@ -2327,24 +2463,24 @@ class __PrinterState extends State<_Printer> {
       }, replace: true);
       return Column(children: [
         Obx(
-              () => failedMsg.value.isNotEmpty
+          () => failedMsg.value.isNotEmpty
               ? Offstage()
               : Align(
-            alignment: Alignment.topLeft,
-            child: Text(translate('printer-{$appName}-not-installed-tip'))
-                .marginOnly(bottom: 10.0),
-          ),
+                  alignment: Alignment.topLeft,
+                  child: Text(translate('printer-{$appName}-not-installed-tip'))
+                      .marginOnly(bottom: 10.0),
+                ),
         ),
         Obx(
-              () => failedMsg.value.isEmpty
+          () => failedMsg.value.isEmpty
               ? Offstage()
               : Align(
-              alignment: Alignment.topLeft,
-              child: Text(failedMsg.value,
-                  style: DefaultTextStyle.of(context)
-                      .style
-                      .copyWith(color: Colors.red))
-                  .marginOnly(bottom: 10.0)),
+                  alignment: Alignment.topLeft,
+                  child: Text(failedMsg.value,
+                          style: DefaultTextStyle.of(context)
+                              .style
+                              .copyWith(color: Colors.red))
+                      .marginOnly(bottom: 10.0)),
         ),
         _Button('Install {$appName} Printer', () {
           failedMsg.value = '';
@@ -2500,29 +2636,27 @@ class _AboutState extends State<_About> {
                 padding:
                     const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
                 child: SelectionArea(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Copyright © ${DateTime.now().toString().substring(0, 4)} Purslane Ltd.\n$license',
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                            Text(
-                              translate('Slogan_tip'),
-                              style: const TextStyle(
+                    child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Copyright © ${DateTime.now().toString().substring(0, 4)} Purslane Ltd.\n$license',
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          Text(
+                            translate('Slogan_tip'),
+                            style: TextStyle(
                                 fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
+                                color: Colors.white),
+                          )
+                        ],
                       ),
-                    ],
-                  ),
-                ),
+                    ),
+                  ],
+                )),
               ).marginSymmetric(vertical: 4.0)
             ],
           ).marginOnly(left: _kContentHMargin)
@@ -2539,8 +2673,8 @@ class _AboutState extends State<_About> {
 // ignore: non_constant_identifier_names
 Widget _Card(
     {required String title,
-      required List<Widget> children,
-      List<Widget>? title_suffix}) {
+    required List<Widget> children,
+    List<Widget>? title_suffix}) {
   return Row(
     children: [
       Flexible(
@@ -2553,12 +2687,12 @@ Widget _Card(
                   children: [
                     Expanded(
                         child: Text(
-                          translate(title),
-                          textAlign: TextAlign.start,
-                          style: const TextStyle(
-                            fontSize: _kTitleFontSize,
-                          ),
-                        )),
+                      translate(title),
+                      textAlign: TextAlign.start,
+                      style: const TextStyle(
+                        fontSize: _kTitleFontSize,
+                      ),
+                    )),
                     ...?title_suffix
                   ],
                 ).marginOnly(left: _kContentHMargin, top: 10, bottom: 10),
@@ -2575,23 +2709,25 @@ Widget _Card(
 
 // ignore: non_constant_identifier_names
 Widget _OptionCheckBox(
-    BuildContext context,
-    String label,
-    String key, {
-      Function(bool)? update,
-      bool reverse = false,
-      bool enabled = true,
-      Icon? checkedIcon,
-      bool? fakeValue,
-      bool isServer = true,
-      bool Function()? optGetter,
-      Future<void> Function(String, bool)? optSetter,
-    }) {
+  BuildContext context,
+  String label,
+  String key, {
+  Function(bool)? update,
+  bool reverse = false,
+  bool enabled = true,
+  Icon? checkedIcon,
+  bool? fakeValue,
+  bool isServer = true,
+  bool Function()? optGetter,
+  Future<void> Function(String, bool)? optSetter,
+  // Optional widget rendered between the label and the trailing space.
+  Widget? trailing,
+}) {
   getOpt() => optGetter != null
       ? optGetter()
       : (isServer
-      ? mainGetBoolOptionSync(key)
-      : mainGetLocalBoolOptionSync(key));
+          ? mainGetBoolOptionSync(key)
+          : mainGetLocalBoolOptionSync(key));
   bool value = getOpt();
   final isOptFixed = isOptionFixed(key);
   if (reverse) value = !value;
@@ -2619,28 +2755,40 @@ Widget _OptionCheckBox(
 
   return GestureDetector(
     child: Obx(
-          () => Row(
+      () => Row(
         children: [
           Checkbox(
-              value: ref.value,
-              onChanged: enabled && !isOptFixed ? onChanged : null)
+                  value: ref.value,
+                  onChanged: enabled && !isOptFixed ? onChanged : null)
               .marginOnly(right: 5),
           Offstage(
             offstage: !ref.value || checkedIcon == null,
             child: checkedIcon?.marginOnly(right: 5),
           ),
-          Expanded(
+          // Without `trailing`, keep the original Expanded(Text) layout.
+          if (trailing == null)
+            Expanded(
+                child: Text(
+              translate(label),
+              style: TextStyle(color: disabledTextColor(context, enabled)),
+            ))
+          else ...[
+            Flexible(
               child: Text(
                 translate(label),
                 style: TextStyle(color: disabledTextColor(context, enabled)),
-              ))
+              ),
+            ),
+            trailing,
+            const Spacer(),
+          ],
         ],
       ),
     ).marginOnly(left: _kCheckBoxLeftMargin),
     onTap: enabled && !isOptFixed
         ? () {
-      onChanged(!ref.value);
-    }
+            onChanged(!ref.value);
+          }
         : null,
   );
 }
@@ -2648,16 +2796,16 @@ Widget _OptionCheckBox(
 // ignore: non_constant_identifier_names
 Widget _Radio<T>(BuildContext context,
     {required T value,
-      required T groupValue,
-      required String label,
-      required Function(T value)? onChanged,
-      bool autoNewLine = true}) {
+    required T groupValue,
+    required String label,
+    required Function(T value)? onChanged,
+    bool autoNewLine = true}) {
   final onChange2 = onChanged != null
       ? (T? value) {
-    if (value != null) {
-      onChanged(value);
-    }
-  }
+          if (value != null) {
+            onChanged(value);
+          }
+        }
       : null;
   return GestureDetector(
     child: Row(
@@ -2665,10 +2813,10 @@ Widget _Radio<T>(BuildContext context,
         Radio<T>(value: value, groupValue: groupValue, onChanged: onChange2),
         Expanded(
           child: Text(translate(label),
-              overflow: autoNewLine ? null : TextOverflow.ellipsis,
-              style: TextStyle(
-                  fontSize: _kContentFontSize,
-                  color: disabledTextColor(context, onChange2 != null)))
+                  overflow: autoNewLine ? null : TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: _kContentFontSize,
+                      color: disabledTextColor(context, onChange2 != null)))
               .marginOnly(left: 5),
         ),
       ],
@@ -2709,15 +2857,15 @@ class _WaylandCardState extends State<WaylandCard> {
     if (showResetInhibitorPermission) {
       platformFFI.registerEventHandler(
           _kClearShortcutsInhibitorEventKey, _kClearShortcutsInhibitorEventKey,
-              (evt) async {
-            if (!mounted) return;
-            if (evt['success'] == true) {
-              setState(() {});
-            } else {
-              _clearShortcutsInhibitorFailedMsg.value =
-                  evt['msg'] as String? ?? 'Unknown error';
-            }
-          });
+          (evt) async {
+        if (!mounted) return;
+        if (evt['success'] == true) {
+          setState(() {});
+        } else {
+          _clearShortcutsInhibitorFailedMsg.value =
+              evt['msg'] as String? ?? 'Unknown error';
+        }
+      });
     }
   }
 
@@ -2738,10 +2886,23 @@ class _WaylandCardState extends State<WaylandCard> {
       hasData: (restoreToken) {
         final hasShortcutsPermission = showResetInhibitorPermission &&
             bind.mainGetCommonSync(
-                key: "has-gnome-shortcuts-inhibitor-permission") ==
+                    key: "has-gnome-shortcuts-inhibitor-permission") ==
                 "true";
 
         final children = [
+          if (isLinux &&
+              bind.mainIsInstalled() &&
+              !bind.isOutgoingOnly() &&
+              !bind.isDisableSettings() &&
+              bind.mainGetCommonSync(key: 'is-drm-capture-supported') ==
+                  'true') ...[
+            _OptionCheckBox(
+                context, 'Use DRM screen capture', kOptionAllowDrmCapture),
+            Align(
+              alignment: Alignment.topLeft,
+              child: Text(translate('drm-capture-tip')),
+            ).marginOnly(left: _kCardLeftMargin),
+          ],
           if (restoreToken.isNotEmpty)
             _buildClearScreenSelection(context, restoreToken),
           if (hasShortcutsPermission)
@@ -2769,16 +2930,16 @@ class _WaylandCardState extends State<WaylandCard> {
     }
 
     showConfirmMsgBox() => msgBoxCommon(
-        gFFI.dialogManager,
-        'Confirmation',
-        Text(
-          translate('confirm_clear_Wayland_screen_selection_tip'),
-        ),
-        [
-          dialogButton('OK', onPressed: onConfirm),
-          dialogButton('Cancel',
-              onPressed: () => gFFI.dialogManager.dismissAll())
-        ]);
+            gFFI.dialogManager,
+            'Confirmation',
+            Text(
+              translate('confirm_clear_Wayland_screen_selection_tip'),
+            ),
+            [
+              dialogButton('OK', onPressed: onConfirm),
+              dialogButton('Cancel',
+                  onPressed: () => gFFI.dialogManager.dismissAll())
+            ]);
 
     return _Button(
       'Clear Wayland screen selection',
@@ -2800,28 +2961,28 @@ class _WaylandCardState extends State<WaylandCard> {
     }
 
     showConfirmMsgBox() => msgBoxCommon(
-        gFFI.dialogManager,
-        'Confirmation',
-        Text(
-          translate('confirm-clear-shortcuts-inhibitor-permission-tip'),
-        ),
-        [
-          dialogButton('OK', onPressed: onConfirm),
-          dialogButton('Cancel',
-              onPressed: () => gFFI.dialogManager.dismissAll())
-        ]);
+            gFFI.dialogManager,
+            'Confirmation',
+            Text(
+              translate('confirm-clear-shortcuts-inhibitor-permission-tip'),
+            ),
+            [
+              dialogButton('OK', onPressed: onConfirm),
+              dialogButton('Cancel',
+                  onPressed: () => gFFI.dialogManager.dismissAll())
+            ]);
 
     return Column(children: [
       Obx(
-            () => _clearShortcutsInhibitorFailedMsg.value.isEmpty
+        () => _clearShortcutsInhibitorFailedMsg.value.isEmpty
             ? Offstage()
             : Align(
-            alignment: Alignment.topLeft,
-            child: Text(_clearShortcutsInhibitorFailedMsg.value,
-                style: DefaultTextStyle.of(context)
-                    .style
-                    .copyWith(color: Colors.red))
-                .marginOnly(bottom: 10.0)),
+                alignment: Alignment.topLeft,
+                child: Text(_clearShortcutsInhibitorFailedMsg.value,
+                        style: DefaultTextStyle.of(context)
+                            .style
+                            .copyWith(color: Colors.red))
+                    .marginOnly(bottom: 10.0)),
       ),
       _Button(
         'Reset keyboard shortcuts permission',
@@ -2889,10 +3050,10 @@ Widget _SubLabeledWidget(BuildContext context, String label, Widget child,
 }
 
 Widget _lock(
-    bool locked,
-    String label,
-    Function() onUnlock,
-    ) {
+  bool locked,
+  String label,
+  Function() onUnlock,
+) {
   return Offstage(
       offstage: !locked,
       child: Row(
@@ -3026,15 +3187,46 @@ class _CountDownButtonState extends State<_CountDownButton> {
       onPressed: _isButtonDisabled
           ? null
           : () {
-        widget.onPressed?.call();
-        setState(() {
-          _isButtonDisabled = true;
-          _countdownSeconds = widget.second;
-        });
-        _startCountdownTimer();
-      },
+              widget.onPressed?.call();
+              setState(() {
+                _isButtonDisabled = true;
+                _countdownSeconds = widget.second;
+              });
+              _startCountdownTimer();
+            },
       child: Text(
         _isButtonDisabled ? '$_countdownSeconds s' : translate(widget.text),
+      ),
+    );
+  }
+}
+
+// Tappable row that pushes the shortcut configuration page.
+class _ShortcutsConfigureRow extends StatelessWidget {
+  // ignore: unused_element
+  const _ShortcutsConfigureRow({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => const DesktopKeyboardShortcutsPage(),
+        ));
+      },
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(translate('Configure shortcuts...')),
+          ),
+          Icon(Icons.arrow_forward_ios,
+                  size: 16, color: disabledTextColor(context, true))
+              .marginOnly(right: 4),
+        ],
+      ).marginOnly(
+        left: _kCheckBoxLeftMargin,
+        top: 6,
+        bottom: 6,
       ),
     );
   }
@@ -3143,7 +3335,7 @@ void changeSocks5Proxy() async {
                       errorText: proxyMsg.isNotEmpty ? proxyMsg : null,
                       labelText: isMobile ? translate('Server') : null,
                       helperText:
-                      isMobile ? translate("default_proxy_tip") : null,
+                          isMobile ? translate("default_proxy_tip") : null,
                       helperMaxLines: isMobile ? 3 : null,
                     ),
                     controller: proxyController,
@@ -3184,18 +3376,18 @@ void changeSocks5Proxy() async {
                       ).marginOnly(right: 10)),
                 Expanded(
                   child: Obx(() => TextField(
-                    obscureText: obscure.value,
-                    decoration: InputDecoration(
-                        labelText: isMobile ? translate('Password') : null,
-                        suffixIcon: IconButton(
-                            onPressed: () => obscure.value = !obscure.value,
-                            icon: Icon(obscure.value
-                                ? Icons.visibility_off
-                                : Icons.visibility))),
-                    controller: pwdController,
-                    enabled: !isOptFixed,
-                    maxLength: bind.mainMaxEncryptLen(),
-                  ).workaroundFreezeLinuxMint()),
+                        obscureText: obscure.value,
+                        decoration: InputDecoration(
+                            labelText: isMobile ? translate('Password') : null,
+                            suffixIcon: IconButton(
+                                onPressed: () => obscure.value = !obscure.value,
+                                icon: Icon(obscure.value
+                                    ? Icons.visibility_off
+                                    : Icons.visibility))),
+                        controller: pwdController,
+                        enabled: !isOptFixed,
+                        maxLength: bind.mainMaxEncryptLen(),
+                      ).workaroundFreezeLinuxMint()),
                 ),
               ],
             ),

@@ -17,7 +17,7 @@ AppDir:
     id: kassatkadesk
     name: kassatkadesk
     icon: kassatkadesk
-    version: 1.5.0
+    version: 1.5.3
     exec: usr/share/kassatkadesk/kassatkadesk
     exec_args: $@
   apt:

@@ -1,5 +1,5 @@
 Name:       kassatkadesk
-Version:    1.5.0
+Version:    1.5.3
 Release:    0
 Summary:    RPM package
 License:    GPL-3.0
